@@ -1,6 +1,13 @@
 package org.example;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,6 +15,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class FlightAnalyzer {
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("[H:mm][HH:mm]");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy");
+
     public static void analyzeFlights(JSONArray tickets) {
         List<Flight> vlToTaFlights = new ArrayList<>();
 
@@ -19,8 +29,16 @@ public class FlightAnalyzer {
             if (origin.equals("VVO") && destination.equals("TLV")) {
                 String carrier = ticket.getString("carrier");
                 int price = ticket.getInt("price");
-                int flightTime = calculateFlightTime(ticket.getString("departure_time"), ticket.getString("arrival_time"));
 
+                LocalDate departureDate = LocalDate.parse(ticket.getString("departure_date"), DATE_FORMATTER);
+                LocalTime departureTime = LocalTime.parse(ticket.getString("departure_time"), TIME_FORMATTER);
+                LocalDate arrivalDate = LocalDate.parse(ticket.getString("arrival_date"), DATE_FORMATTER);
+                LocalTime arrivalTime = LocalTime.parse(ticket.getString("arrival_time"), TIME_FORMATTER);
+
+                ZonedDateTime departureDateTime = ZonedDateTime.of(departureDate, departureTime, ZoneId.of("Asia/Vladivostok"));
+                ZonedDateTime arrivalDateTime = ZonedDateTime.of(arrivalDate, arrivalTime, ZoneId.of("Asia/Jerusalem"));
+
+                int flightTime = calculateFlightTime(departureDateTime, arrivalDateTime);
                 vlToTaFlights.add(new Flight(carrier, price, flightTime));
             }
         }
@@ -34,16 +52,9 @@ public class FlightAnalyzer {
         calculateAndPrintPriceStats(vlToTaFlights);
     }
 
-    public static int calculateFlightTime(String departureTime, String arrivalTime) {
-        int departureHour = Integer.parseInt(departureTime.split(":")[0]);
-        int departureMinute = Integer.parseInt(departureTime.split(":")[1]);
-        int arrivalHour = Integer.parseInt(arrivalTime.split(":")[0]);
-        int arrivalMinute = Integer.parseInt(arrivalTime.split(":")[1]);
-
-        int totalDepartureMinutes = departureHour * 60 + departureMinute;
-        int totalArrivalMinutes = arrivalHour * 60 + arrivalMinute;
-
-        return totalArrivalMinutes - totalDepartureMinutes;
+    public static int calculateFlightTime(ZonedDateTime departureDateTime, ZonedDateTime arrivalDateTime) {
+        Duration duration = Duration.between(departureDateTime, arrivalDateTime);
+        return (int) duration.toMinutes();
     }
 
     public static void calculateAndPrintMinFlightTimes(List<Flight> flights) {
@@ -81,5 +92,3 @@ public class FlightAnalyzer {
         System.out.println("Difference between average price and median price: " + (averagePrice - medianPrice));
     }
 }
-
-
